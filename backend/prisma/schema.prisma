@@ -1,0 +1,86 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLogin    DateTime? @map("last_login")
+  
+  // Relations
+  wallet       Wallet?
+  transactions Transaction[]
+  
+  @@map("users")
+  @@index([email])
+}
+
+// Wallet model
+model Wallet {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  publicKey           String   @unique @map("public_key")
+  encryptedPrivateKey String   @map("encrypted_private_key")
+  encryptionIv        String   @map("encryption_iv")
+  encryptionTag       String   @map("encryption_tag")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("wallets")
+  @@index([publicKey])
+}
+
+// Transaction Status Enum
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+// Transaction Type Enum
+enum TransactionType {
+  TRANSFER
+  SWAP
+}
+
+// Transaction model
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  signature   String?           @unique
+  status      TransactionStatus @default(PENDING)
+  type        TransactionType
+  fromAddress String?           @map("from_address")
+  toAddress   String?           @map("to_address")
+  amount      Decimal           @db.Decimal(20, 9)
+  token       String            @default("SOL")
+  fee         Decimal?          @db.Decimal(20, 9)
+  details     Json?
+  error       String?
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  confirmedAt DateTime?         @map("confirmed_at")
+  
+  // Relations
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, status])
+  @@index([signature])
+  @@index([createdAt])
+  @@map("transactions")
+}
