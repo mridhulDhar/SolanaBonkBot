@@ -106,4 +106,60 @@ router.post('/send', authenticateToken, async (req: AuthRequest, res: Response) 
     }
 });
 
+
+router.get("/status/:transactionId", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const {transactionId} = req.params;
+        const userId = req.userId;
+
+        console.log("transaction and user id---"+ transactionId+"--------"+userId )
+
+        const transaction = await prisma.transaction.findFirst({
+            where : {
+                id: transactionId,
+                userId
+            }
+        });
+
+        if(!transaction){
+            return res.status(404).json({
+                error: "transaction not found"
+            });
+        }
+
+        let onChainStatus = null;
+        if(transaction.signature){
+            const details = await walletService.getTransactionDetails(transaction.signature);
+            if(details){
+                onChainStatus = {
+                    slot: details.slot,
+                    confirmation: details.confirmationStatus,
+                    blockTime: details.blockTime
+                };
+            }
+        }
+
+        return res.json({
+            id: transaction.id,
+            status: transaction.status,
+            signature: transaction.signature,
+            type: transaction.type,
+            amount: transaction.amount.toString(),
+            token: transaction.token,
+            fromAddress: transaction.fromAddress,
+            toAddress: transaction.toAddress,
+            fee: transaction.fee?.toString() || null,
+            error: transaction.error,
+            createdAt: transaction.createdAt,
+            confirmedAt: transaction.confirmedAt,
+            onChainStatus
+        })
+    }
+    catch(error){
+        return res.json({
+            message: "Something went wrong on the network"
+        })
+    }
+});
+
 export {router as transactionRouter};

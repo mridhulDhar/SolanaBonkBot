@@ -5,10 +5,12 @@ import { prisma } from "../config/prisma";
 
 export class WalletService{
     private connection: Connection;
+    private commitment = 'confirmed' as const;
 
     constructor(){
         const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-        this.connection = new Connection(rpcUrl, 'confirmed');
+        //'https://solana-devnet.g.alchemy.com/v2/g44_pbu_7lTLQwSb6Lg9r11MiDe8TiQ3';
+        this.connection = new Connection(rpcUrl, this.commitment);
     }
 
     async createWallet(userId: string): Promise<{publicKey: string; walletId: string}>{
@@ -53,11 +55,13 @@ export class WalletService{
     async getBalance(publicKey: string): Promise<any> {
         try{
             const pubKey = new PublicKey(publicKey);
-            const balance = await this.connection.getBalance(pubKey);
-            return balance/LAMPORTS_PER_SOL ;
+            const balance = await this.connection.getBalance(pubKey, this.commitment);
+
+            const solBalance = Number(balance) / LAMPORTS_PER_SOL;
+            return solBalance ;
         }
         catch(error){
-            return 0;
+            console.error("Error in getBalance:", error);
         }
     }
 
@@ -93,6 +97,38 @@ export class WalletService{
         }
         catch(error){
             throw error;
+        }
+    }
+
+    async getTransactionDetails(signature: string): Promise<any>{
+        try{
+            const details = await this.connection.getTransaction(signature, {
+                commitment: this.commitment,
+                maxSupportedTransactionVersion: 0
+            });
+
+            return details;
+        }
+        catch(error){
+            throw new Error("failed to get transaction details");
+        }
+    }
+
+    async requestAirdrop(publicKey: string, amount: number): Promise<any> {
+        try{
+            const pKey = new PublicKey(publicKey);
+            const lamports = Math.round(amount * LAMPORTS_PER_SOL);
+
+            const sig = await this.connection.requestAirdrop(pKey, lamports);
+
+            console.log(`Airdrop requested: ${sig}`);
+            console.log(`Airdrop will be processed in the background`);
+
+            return sig;
+        }
+        catch(error){
+            console.log(error);
+            throw new Error("failed to perform airdrop");
         }
     }
 }

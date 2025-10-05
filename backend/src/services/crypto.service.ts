@@ -5,7 +5,7 @@ export class CryptoService {
     private static masterKey: Buffer;
 
     static{
-        const key = '';
+        const key = 'f63ad8edee5afe45ffa1b2681710d9a5e03ad960a217332d4f72eff48d2e1095';
         if(!key || key.length !== 64){
             throw new Error('Invalid MASTER_ENCRYPTION_KEY. Must be 32 bytes (64 hex characters)');
         }
